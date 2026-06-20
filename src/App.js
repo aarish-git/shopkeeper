@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import SalesPage from './pages/SalesPage';
+import SettingsPage from './pages/SettingsPage';
 
 function AuthLoadingScreen() {
   return (
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/sold" element={<SalesPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

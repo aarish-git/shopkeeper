@@ -8,6 +8,7 @@ const navItems = [
   { to: '/products', label: '📦 Products' },
   { to: '/cart', label: '🛒 Cart' },
   { to: '/sold', label: '📈 Sales' },
+  { to: '/settings', label: '⚙️ Settings' },
 ];
 
 function AppLayout({ children }) {

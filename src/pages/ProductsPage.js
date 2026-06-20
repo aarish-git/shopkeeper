@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, useShop } from '../context/ShopContext';
 import './ProductsPage.css';
@@ -6,8 +6,34 @@ import './ProductsPage.css';
 function ProductsPage() {
   const { products, addToCart } = useShop();
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedImageIndex, setSelectedImageIndex] = useState({});
   const [selectedSizeByProduct, setSelectedSizeByProduct] = useState({});
+
+  const filteredProducts = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      const name = String(product.name || '').toLowerCase();
+      const rateType = String(product.rateType || '').toLowerCase();
+      const stock = String(product.quantity ?? '');
+      const legacySize = String(product.size || '').toLowerCase();
+      const sizeList = Array.isArray(product.sizePricing)
+        ? product.sizePricing.map((row) => String(row?.size || '').toLowerCase()).join(' ')
+        : '';
+
+      return (
+        name.includes(keyword) ||
+        rateType.includes(keyword) ||
+        stock.includes(keyword) ||
+        legacySize.includes(keyword) ||
+        sizeList.includes(keyword)
+      );
+    });
+  }, [products, searchTerm]);
 
   const getSizeOptions = (product) => {
     if (Array.isArray(product.sizePricing) && product.sizePricing.length) {
@@ -78,8 +104,23 @@ function ProductsPage() {
       <h2>All Products</h2>
       {!products.length ? <p>No products yet. Add your first product.</p> : null}
 
+      {products.length ? (
+        <div className="products-search-wrap">
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search by name, size, rate type, or stock"
+            className="products-search"
+            aria-label="Search products"
+          />
+        </div>
+      ) : null}
+
+      {products.length && !filteredProducts.length ? <p>No products match "{searchTerm}".</p> : null}
+
       <div className="products-grid">
-        {products.map((product) => {
+        {filteredProducts.map((product) => {
           const images = getProductImages(product);
           const displayImage = getDisplayImage(product);
           const currentImageIndex = selectedImageIndex[product.id] || 0;

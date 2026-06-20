@@ -5,6 +5,7 @@ import { db } from '../utils/firebase';
 import { parseStoredData, persistStoredData, STORAGE_KEYS } from '../utils/storage';
 
 const ShopContext = createContext(null);
+const DEFAULT_ADMIN_PASSWORD = 'admin';
 
 const getDefaultForm = () => ({
   name: '',
@@ -54,15 +55,32 @@ const getWindowStartDate = (filter) => {
 const getSaleLineAmount = (line, key) => Number(line[key] || 0) * Number(line.quantity || 0);
 const BACKUP_SCHEMA_VERSION = 1;
 
+const sanitizeForFirestore = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForFirestore(item));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .map(([key, entryValue]) => [key, sanitizeForFirestore(entryValue)])
+    );
+  }
+
+  return value;
+};
+
 const loadLocalState = () => {
   if (typeof window === 'undefined') {
-    return { products: [], cartItems: [], sales: [] };
+    return { products: [], cartItems: [], sales: [], adminPassword: DEFAULT_ADMIN_PASSWORD };
   }
 
   return {
     products: parseStoredData(STORAGE_KEYS.products, []),
     cartItems: parseStoredData(STORAGE_KEYS.cart, []),
     sales: parseStoredData(STORAGE_KEYS.sales, []),
+    adminPassword: parseStoredData(STORAGE_KEYS.adminPassword, DEFAULT_ADMIN_PASSWORD),
   };
 };
 
@@ -74,6 +92,7 @@ const persistLocalState = (nextState) => {
   persistStoredData(STORAGE_KEYS.products, nextState.products);
   persistStoredData(STORAGE_KEYS.cart, nextState.cartItems);
   persistStoredData(STORAGE_KEYS.sales, nextState.sales);
+  persistStoredData(STORAGE_KEYS.adminPassword, nextState.adminPassword);
 };
 
 export const formatCurrency = (value) => `Rs. ${Number(value || 0).toFixed(2)}`;
@@ -85,6 +104,7 @@ export function ShopProvider({ children }) {
   const [sales, setSales] = useState([]);
   const [formData, setFormData] = useState(getDefaultForm());
   const [salesFilter, setSalesFilter] = useState('TODAY');
+  const [adminPassword, setAdminPassword] = useState(DEFAULT_ADMIN_PASSWORD);
   const [message, setMessage] = useState('');
   const [isReady, setIsReady] = useState(false);
 
@@ -103,13 +123,14 @@ export function ShopProvider({ children }) {
 
     void setDoc(
       remoteDocRef,
-      {
+      sanitizeForFirestore({
         products: nextState.products,
         cartItems: nextState.cartItems,
         sales: nextState.sales,
+        adminPassword: nextState.adminPassword,
         ownerUid: user.uid,
         updatedAt: serverTimestamp(),
-      },
+      }),
       { merge: true }
     );
   };
@@ -118,12 +139,22 @@ export function ShopProvider({ children }) {
     const nextProducts = Array.isArray(nextState.products) ? nextState.products : products;
     const nextCartItems = Array.isArray(nextState.cartItems) ? nextState.cartItems : cartItems;
     const nextSales = Array.isArray(nextState.sales) ? nextState.sales : sales;
+    const nextAdminPassword =
+      typeof nextState.adminPassword === 'string' && nextState.adminPassword.trim()
+        ? nextState.adminPassword.trim()
+        : adminPassword;
 
     setProducts(nextProducts);
     setCartItems(nextCartItems);
     setSales(nextSales);
+    setAdminPassword(nextAdminPassword);
 
-    const dataToPersist = { products: nextProducts, cartItems: nextCartItems, sales: nextSales };
+    const dataToPersist = {
+      products: nextProducts,
+      cartItems: nextCartItems,
+      sales: nextSales,
+      adminPassword: nextAdminPassword,
+    };
     if (remoteDocRef) {
       persistRemoteState(dataToPersist);
     } else {
@@ -136,6 +167,7 @@ export function ShopProvider({ children }) {
       setProducts([]);
       setCartItems([]);
       setSales([]);
+      setAdminPassword(DEFAULT_ADMIN_PASSWORD);
       setIsReady(false);
       return undefined;
     }
@@ -145,6 +177,7 @@ export function ShopProvider({ children }) {
       setProducts(localState.products);
       setCartItems(localState.cartItems);
       setSales(localState.sales);
+      setAdminPassword(localState.adminPassword || DEFAULT_ADMIN_PASSWORD);
       setIsReady(true);
       setMessage('Running in offline mode. Data is saved on this device.');
       return undefined;
@@ -161,6 +194,7 @@ export function ShopProvider({ children }) {
               products: [],
               cartItems: [],
               sales: [],
+              adminPassword: DEFAULT_ADMIN_PASSWORD,
               ownerUid: user.uid,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
@@ -170,6 +204,7 @@ export function ShopProvider({ children }) {
           setProducts([]);
           setCartItems([]);
           setSales([]);
+          setAdminPassword(DEFAULT_ADMIN_PASSWORD);
           setIsReady(true);
           return;
         }
@@ -178,6 +213,11 @@ export function ShopProvider({ children }) {
         setProducts(Array.isArray(nextData.products) ? nextData.products : []);
         setCartItems(Array.isArray(nextData.cartItems) ? nextData.cartItems : []);
         setSales(Array.isArray(nextData.sales) ? nextData.sales : []);
+        setAdminPassword(
+          typeof nextData.adminPassword === 'string' && nextData.adminPassword.trim()
+            ? nextData.adminPassword.trim()
+            : DEFAULT_ADMIN_PASSWORD
+        );
         setIsReady(true);
       },
       () => {
@@ -373,6 +413,18 @@ export function ShopProvider({ children }) {
     persistCart(updated);
   };
 
+  const updateCartSellingPrice = (cartItemId, value) => {
+    const nextPrice = Number(value);
+    if (!Number.isFinite(nextPrice) || nextPrice < 0) {
+      return;
+    }
+
+    const updated = cartItems.map((item) =>
+      item.id === cartItemId ? { ...item, sellingPrice: nextPrice } : item
+    );
+    persistCart(updated);
+  };
+
   const removeFromCart = (cartItemId) => {
     persistCart(cartItems.filter((item) => item.id !== cartItemId));
   };
@@ -485,8 +537,11 @@ export function ShopProvider({ children }) {
       };
     });
 
-    persistProducts(updatedProducts);
-    persistCart([]);
+    commitState({
+      sales: [saleRecord, ...sales],
+      products: updatedProducts,
+      cartItems: [],
+    });
     setMessage('All cart items marked as sold.');
     return true;
   };
@@ -530,6 +585,23 @@ export function ShopProvider({ children }) {
   }, [soldLines]);
 
   const clearMessage = () => setMessage('');
+
+  const updateAdminPassword = (currentPasswordInput, nextPasswordInput) => {
+    if (String(currentPasswordInput || '') !== adminPassword) {
+      setMessage('Current admin password is incorrect.');
+      return false;
+    }
+
+    const trimmedNext = String(nextPasswordInput || '').trim();
+    if (trimmedNext.length < 4) {
+      setMessage('New admin password must be at least 4 characters.');
+      return false;
+    }
+
+    commitState({ adminPassword: trimmedNext });
+    setMessage('Admin password updated successfully.');
+    return true;
+  };
 
   const exportBackupData = () => {
     try {
@@ -597,6 +669,7 @@ export function ShopProvider({ children }) {
     formData,
     salesFilter,
     setSalesFilter,
+    adminPassword,
     soldLines,
     totals,
     message,
@@ -609,12 +682,14 @@ export function ShopProvider({ children }) {
     addProduct,
     addToCart,
     updateCartQuantity,
+    updateCartSellingPrice,
     removeFromCart,
     getProductById,
     updateProduct,
     deleteProduct,
     markAsSold,
     clearTodaySales,
+    updateAdminPassword,
     exportBackupData,
     importBackupData,
   };

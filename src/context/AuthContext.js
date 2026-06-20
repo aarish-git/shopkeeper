@@ -4,13 +4,6 @@ import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from
 import { auth, firebaseStatusMessage, googleProvider, isFirebaseConfigured } from '../utils/firebase';
 
 const AuthContext = createContext(null);
-const OFFLINE_USER_FLAG = 'shopkeeper_offline_user';
-
-const getOfflineUser = () => ({
-  uid: 'offline-user',
-  displayName: 'Offline User',
-  isOffline: true,
-});
 
 const getFriendlyAuthMessage = (error) => {
   const code = error?.code || '';
@@ -39,7 +32,27 @@ const getFriendlyAuthMessage = (error) => {
     return 'Invalid Firebase API key. Check your REACT_APP_FIREBASE_* values.';
   }
 
-  return 'Google sign-in failed. Please try again.';
+  if (code === 'auth/popup-blocked') {
+    return 'Popup was blocked by the browser. Allow popups for this site and try again.';
+  }
+
+  if (code === 'auth/requests-from-referer-are-blocked') {
+    return 'This domain is blocked by API key restrictions. Allow this domain in Google Cloud API key restrictions.';
+  }
+
+  if (code === 'auth/web-storage-unsupported') {
+    return 'Browser storage is disabled, so sign-in cannot continue. Enable cookies/local storage and retry.';
+  }
+
+  if (code === 'auth/internal-error') {
+    return 'Firebase auth internal error. Verify Firebase config, authorized domain, and provider settings.';
+  }
+
+  if (code === 'auth/too-many-requests') {
+    return 'Too many sign-in attempts. Please wait a few minutes and try again.';
+  }
+
+  return `Google sign-in failed. ${code ? `(${code})` : 'Please try again.'}`;
 };
 
 export function AuthProvider({ children }) {
@@ -49,13 +62,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!auth) {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(OFFLINE_USER_FLAG, 'true');
-      }
-
-      setUser(getOfflineUser());
-      setAuthMessage('Running in offline mode. Cloud sync is disabled.');
-
+      setUser(null);
+      setAuthMessage(firebaseStatusMessage || 'Firebase is not configured. Google sign-in is required to use this app.');
       setLoading(false);
       return undefined;
     }
@@ -78,20 +86,10 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const signInOffline = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(OFFLINE_USER_FLAG, 'true');
-    }
-
-    setUser(getOfflineUser());
-    setAuthMessage('Running in offline mode. Cloud sync is disabled.');
-    return true;
-  }, []);
-
   const signInWithGoogle = useCallback(async () => {
     if (!auth || !isFirebaseConfigured) {
-      setAuthMessage(firebaseStatusMessage || 'Google sign-in is unavailable. Continuing in offline mode.');
-      return signInOffline();
+      setAuthMessage(firebaseStatusMessage || 'Google sign-in is unavailable until Firebase is configured.');
+      return false;
     }
 
     setAuthMessage('');
@@ -100,11 +98,17 @@ export function AuthProvider({ children }) {
       await signInWithPopup(auth, googleProvider);
       return true;
     } catch (error) {
+      // Log raw auth errors for easier debugging in browser console.
+      // eslint-disable-next-line no-console
+      console.error('Google sign-in popup failed', error);
+
       if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
         try {
           await signInWithRedirect(auth, googleProvider);
           return true;
         } catch (redirectError) {
+          // eslint-disable-next-line no-console
+          console.error('Google sign-in redirect failed', redirectError);
           setAuthMessage(getFriendlyAuthMessage(redirectError));
           return false;
         }
@@ -113,17 +117,17 @@ export function AuthProvider({ children }) {
       setAuthMessage(getFriendlyAuthMessage(error));
       return false;
     }
-  }, [signInOffline]);
+  }, []);
 
   const signOutUser = useCallback(async () => {
     if (!auth) {
-      signInOffline();
+      setUser(null);
       return true;
     }
 
     await signOut(auth);
     return true;
-  }, [signInOffline]);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -131,10 +135,9 @@ export function AuthProvider({ children }) {
       loading,
       authMessage,
       signInWithGoogle,
-      signInOffline,
       signOutUser,
     }),
-    [user, loading, authMessage, signInWithGoogle, signInOffline, signOutUser]
+    [user, loading, authMessage, signInWithGoogle, signOutUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatCurrency, useShop } from '../context/ShopContext';
 
 function CartPage() {
-  const { cartItems, updateCartQuantity, removeFromCart, markAsSold } = useShop();
+  const { cartItems, updateCartQuantity, updateCartSellingPrice, removeFromCart, markAsSold } = useShop();
   const navigate = useNavigate();
 
   const onCompleteSale = () => {
@@ -42,7 +42,15 @@ function CartPage() {
                   />
                 </td>
                 <td>{formatCurrency(item.costPrice)}</td>
-                <td>{formatCurrency(item.sellingPrice)}</td>
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.sellingPrice}
+                    onChange={(event) => updateCartSellingPrice(item.id, event.target.value)}
+                  />
+                </td>
                 <td>
                   <button className="danger-btn" type="button" onClick={() => removeFromCart(item.id)}>
                     Remove

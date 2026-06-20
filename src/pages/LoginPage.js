@@ -4,7 +4,7 @@ import { firebaseStatusMessage, isFirebaseConfigured } from '../utils/firebase';
 import './LoginPage.css';
 
 function LoginPage() {
-  const { authMessage, signInWithGoogle, signInOffline } = useAuth();
+  const { authMessage, signInWithGoogle } = useAuth();
   const [submitting, setSubmitting] = useState(false);
 
   const onGoogleSignIn = async () => {
@@ -18,22 +18,14 @@ function LoginPage() {
 
   const message = authMessage || firebaseStatusMessage;
 
-  const onOfflineSignIn = () => {
-    signInOffline();
-  };
-
   return (
     <main className="login-screen">
       <section className="login-card">
         <div className="login-left">
           <div className="login-brand">
             <div className="login-badge">Shopkeeper</div>
-            <h1>{isFirebaseConfigured ? 'Sign in with Google' : 'Continue in Offline Mode'}</h1>
-            <p>
-              {isFirebaseConfigured
-                ? 'Use one account across phone and desktop. Your products, cart items, and sales stay synced.'
-                : 'Cloud sync is optional. You can continue now and use the app without Firebase setup.'}
-            </p>
+            <h1>Sign in with Google</h1>
+            <p>Login is required to use the app and keep your products, cart, and sales synced.</p>
           </div>
 
           <div className="login-benefits">
@@ -64,31 +56,29 @@ function LoginPage() {
         <div className="login-right">
           <div className="login-panel">
             <h2>Continue</h2>
-            <p>{isFirebaseConfigured ? 'Authenticate with Google to enter the app.' : 'Enter the app now. No setup needed.'}</p>
+            <p>Authenticate with Google to enter the app.</p>
 
             {message ? <p className="login-message">{message}</p> : null}
 
-            {isFirebaseConfigured ? (
-              <button type="button" className="login-btn" onClick={onGoogleSignIn} disabled={submitting}>
-                {submitting ? 'Signing in...' : 'Continue with Google'}
-              </button>
-            ) : null}
+            <button type="button" className="login-btn" onClick={onGoogleSignIn} disabled={submitting || !isFirebaseConfigured}>
+              {submitting ? 'Signing in...' : 'Continue with Google'}
+            </button>
 
-            {isFirebaseConfigured ? null : (
-              <button type="button" className="offline-btn" onClick={onOfflineSignIn}>
-                Continue in Offline Mode
-              </button>
-            )}
+            {!isFirebaseConfigured ? (
+              <p className="missing-keys">Firebase config is required before users can log in.</p>
+            ) : null}
 
             <div className="login-footnote">
               {isFirebaseConfigured ? (
-                <p>Your Firebase configuration is detected.</p>
+                <p>Firebase is configured and ready.</p>
               ) : (
-                <p>Firebase is not configured. This is fine for offline usage.</p>
+                <p>Complete Firebase setup, then retry Google sign-in.</p>
               )}
             </div>
 
-            {authMessage || firebaseStatusMessage ? <p className="missing-keys">{authMessage || firebaseStatusMessage}</p> : null}
+            {authMessage || firebaseStatusMessage ? (
+              <p className="missing-keys">{authMessage || firebaseStatusMessage}</p>
+            ) : null}
           </div>
         </div>
       </section>

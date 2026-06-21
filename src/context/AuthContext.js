@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import { auth, firebaseStatusMessage, googleProvider, isFirebaseConfigured } from '../utils/firebase';
 
@@ -9,7 +10,7 @@ const getFriendlyAuthMessage = (error) => {
   const code = error?.code || '';
 
   if (code === 'auth/unauthorized-domain') {
-    return 'This domain is not authorized in Firebase Authentication settings.';
+    return 'This app domain is not authorized in Firebase Authentication settings. Add localhost in Firebase Auth > Settings > Authorized domains.';
   }
 
   if (code === 'auth/popup-closed-by-user') {
@@ -26,6 +27,10 @@ const getFriendlyAuthMessage = (error) => {
 
   if (code === 'auth/operation-not-allowed') {
     return 'Google sign-in is disabled in Firebase Authentication provider settings.';
+  }
+
+  if (code === 'auth/operation-not-supported-in-this-environment') {
+    return 'Google popup sign-in is not supported in this environment. On APK builds, redirect sign-in is required.';
   }
 
   if (code === 'auth/invalid-api-key') {
@@ -93,6 +98,20 @@ export function AuthProvider({ children }) {
     }
 
     setAuthMessage('');
+
+    const isNativePlatform = Capacitor?.isNativePlatform?.() || false;
+
+    if (isNativePlatform) {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return true;
+      } catch (redirectError) {
+        // eslint-disable-next-line no-console
+        console.error('Google sign-in redirect failed on native platform', redirectError);
+        setAuthMessage(getFriendlyAuthMessage(redirectError));
+        return false;
+      }
+    }
 
     try {
       await signInWithPopup(auth, googleProvider);

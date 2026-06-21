@@ -1,7 +1,15 @@
 /* eslint-disable react/prop-types */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+} from 'firebase/auth';
 import { auth, firebaseStatusMessage, googleProvider, isFirebaseConfigured } from '../utils/firebase';
 
 const AuthContext = createContext(null);
@@ -19,6 +27,7 @@ const getAuthErrorMessage = (error) => {
     'auth/internal-error': 'Firebase internal error. Verify config and try again.',
     'auth/invalid-cordova-configuration': 'Mobile configuration error. Updating app...',
     'auth/argument-error': 'Sign-in environment configuration mismatch. Retrying...',
+    'canceled': 'Sign-in was canceled.',
   };
   const defaultMsg = code ? `Sign-in failed (${code})` : 'Sign-in failed. Please retry.';
   return errorMap[code] || defaultMsg;
@@ -66,7 +75,17 @@ export function AuthProvider({ children }) {
 
     try {
       if (isNative) {
-        await signInWithRedirect(auth, googleProvider);
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        const idToken = result?.credential?.idToken;
+        const accessToken = result?.credential?.accessToken;
+
+        if (!idToken && !accessToken) {
+          setAuthMessage('Google token not returned from native sign-in.');
+          return false;
+        }
+
+        const credential = GoogleAuthProvider.credential(idToken || null, accessToken || null);
+        await signInWithCredential(auth, credential);
         return true;
       }
 
@@ -96,6 +115,15 @@ export function AuthProvider({ children }) {
       setUser(null);
       return true;
     }
+
+    if (Capacitor?.isNativePlatform?.()) {
+      try {
+        await FirebaseAuthentication.signOut();
+      } catch (error) {
+        console.warn('Native sign-out warning:', error?.message || error);
+      }
+    }
+
     await signOut(auth);
     return true;
   }, []);

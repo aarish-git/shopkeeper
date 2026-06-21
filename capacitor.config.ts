@@ -5,12 +5,16 @@ const config: CapacitorConfig = {
   appName: 'Shopkeeper',
   webDir: 'build',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'http'
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 0,
-    }
+    },
+    FirebaseAuthentication: {
+      skipNativeAuth: true,
+      providers: ['google.com'],
+    },
   }
 };
 

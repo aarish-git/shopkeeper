@@ -31,8 +31,9 @@ function AddProductPage() {
             Quantity
             <input
               name="quantity"
-              type="number"
-              min="1"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={formData.quantity}
               onChange={onInputChange}
               required

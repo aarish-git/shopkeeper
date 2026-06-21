@@ -366,6 +366,11 @@ td {
   color: var(--text-dark);
 }
 
+.table-wrap td input {
+  width: 100%;
+  min-width: 110px;
+}
+
 tr:hover {
   background: rgba(125, 211, 252, 0.12);
 }
@@ -569,6 +574,10 @@ tr:hover {
   th,
   td {
     padding: 10px 8px;
+  }
+
+  .table-wrap td input {
+    min-width: 90px;
   }
 
   .summary-box {

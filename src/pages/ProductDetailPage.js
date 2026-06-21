@@ -125,7 +125,15 @@ function ProductDetailPage() {
 
           <label>
             Quantity
-            <input name="quantity" type="number" min="0" value={formData.quantity} onChange={onFieldChange} required />
+            <input
+              name="quantity"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={formData.quantity}
+              onChange={onFieldChange}
+              required
+            />
           </label>
 
           <label>

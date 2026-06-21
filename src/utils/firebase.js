@@ -1,5 +1,7 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { GoogleAuthProvider, getAuth } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuthProvider, getAuth, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
+import { cordovaPopupRedirectResolver } from 'firebase/auth/cordova';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -29,8 +31,29 @@ if (isFirebaseConfigured) {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 }
 
+const isNativePlatform = Capacitor?.isNativePlatform?.() || false;
+
+const createAuthInstance = (firebaseApp) => {
+  if (!firebaseApp) {
+    return null;
+  }
+
+  if (!isNativePlatform) {
+    return getAuth(firebaseApp);
+  }
+
+  try {
+    return initializeAuth(firebaseApp, {
+      persistence: indexedDBLocalPersistence,
+      popupRedirectResolver: cordovaPopupRedirectResolver,
+    });
+  } catch {
+    return getAuth(firebaseApp);
+  }
+};
+
 export const firebaseApp = app;
-export const auth = app ? getAuth(app) : null;
+export const auth = createAuthInstance(app);
 export const db = app ? getFirestore(app) : null;
 
 export const googleProvider = new GoogleAuthProvider();

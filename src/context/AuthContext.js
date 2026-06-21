@@ -57,6 +57,10 @@ const getFriendlyAuthMessage = (error) => {
     return 'Redirect URI is invalid. Add localhost and your Firebase auth domain to authorized domains.';
   }
 
+  if (code === 'auth/missing-initial-state') {
+    return 'Sign-in state was lost while returning from browser. Please try sign-in again.';
+  }
+
   if (code === 'auth/too-many-requests') {
     return 'Too many sign-in attempts. Please wait a few minutes and try again.';
   }

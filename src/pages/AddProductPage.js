@@ -121,7 +121,7 @@ function AddProductPage() {
 
           <div className="size-price-list">
             {formData.sizePricing.map((row, index) => (
-              <div key={`${index}-${row.size}`} className="size-price-row">
+              <div key={index} className="size-price-row">
                 <label>
                   Size
                   <input

@@ -155,7 +155,7 @@ function ProductDetailPage() {
           <h3>Sizes and Prices</h3>
           <div className="size-price-list">
             {formData.sizePricing.map((row, index) => (
-              <div key={`${index}-${row.size}`} className="size-price-row">
+              <div key={index} className="size-price-row">
                 <label>
                   Size
                   <input value={row.size} onChange={(event) => onSizePriceChange(index, 'size', event.target.value)} placeholder="S / M / L / 500g" required />

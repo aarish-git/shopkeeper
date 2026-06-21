@@ -66,11 +66,16 @@
 .size-price-row {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(140px, 1fr)) auto;
+  grid-template-columns: minmax(220px, 1.35fr) repeat(2, minmax(140px, 1fr)) auto;
   padding: 12px;
   border: 1px solid #e5e0d3;
   border-radius: 12px;
   background: linear-gradient(135deg, #fff 0%, #f9f8ff 100%);
+}
+
+.size-price-row label input {
+  width: 100%;
+  min-width: 0;
 }
 
 .size-remove-btn {

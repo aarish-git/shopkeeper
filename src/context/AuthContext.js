@@ -30,7 +30,7 @@ const getFriendlyAuthMessage = (error) => {
   }
 
   if (code === 'auth/operation-not-supported-in-this-environment') {
-    return 'Google popup sign-in is not supported in this environment. On APK builds, redirect sign-in is required.';
+    return 'Google popup sign-in is not supported in this environment. Retrying with redirect sign-in.';
   }
 
   if (code === 'auth/invalid-api-key') {
@@ -51,6 +51,10 @@ const getFriendlyAuthMessage = (error) => {
 
   if (code === 'auth/internal-error') {
     return 'Firebase auth internal error. Verify Firebase config, authorized domain, and provider settings.';
+  }
+
+  if (code === 'auth/invalid-continue-uri') {
+    return 'Redirect URI is invalid. Add localhost and your Firebase auth domain to authorized domains.';
   }
 
   if (code === 'auth/too-many-requests') {
@@ -103,7 +107,23 @@ export function AuthProvider({ children }) {
 
     if (isNativePlatform) {
       try {
+        await signInWithPopup(auth, googleProvider);
+        return true;
+      } catch (nativePopupError) {
+        // eslint-disable-next-line no-console
+        console.warn('Native popup sign-in failed, falling back to redirect', nativePopupError);
+
+        // Only retry with redirect for expected popup limitations.
+        if (
+          nativePopupError?.code !== 'auth/popup-blocked' &&
+          nativePopupError?.code !== 'auth/operation-not-supported-in-this-environment'
+        ) {
+          setAuthMessage(getFriendlyAuthMessage(nativePopupError));
+          return false;
+        }
+
         await signInWithRedirect(auth, googleProvider);
+        setAuthMessage('Complete sign-in in browser, then return to the app.');
         return true;
       } catch (redirectError) {
         // eslint-disable-next-line no-console

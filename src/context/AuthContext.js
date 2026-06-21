@@ -61,6 +61,10 @@ const getFriendlyAuthMessage = (error) => {
     return 'Sign-in state was lost while returning from browser. Please try sign-in again.';
   }
 
+  if (code === 'auth/invalid-cordova-configuration') {
+    return 'Mobile sign-in configuration is invalid for Cordova resolver. Please update app and retry sign-in.';
+  }
+
   if (code === 'auth/too-many-requests') {
     return 'Too many sign-in attempts. Please wait a few minutes and try again.';
   }

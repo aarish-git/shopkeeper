@@ -32,13 +32,14 @@ if (isFirebaseConfigured) {
 }
 
 const isNativePlatform = Capacitor?.isNativePlatform?.() || false;
+const isCordovaRuntime = typeof window !== 'undefined' && Boolean(window?.cordova);
 
 const createAuthInstance = (firebaseApp) => {
   if (!firebaseApp) {
     return null;
   }
 
-  if (!isNativePlatform) {
+  if (!isNativePlatform || !isCordovaRuntime) {
     return getAuth(firebaseApp);
   }
 

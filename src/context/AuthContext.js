@@ -122,14 +122,16 @@ export function AuthProvider({ children }) {
           return false;
         }
 
-        await signInWithRedirect(auth, googleProvider);
-        setAuthMessage('Complete sign-in in browser, then return to the app.');
-        return true;
-      } catch (redirectError) {
-        // eslint-disable-next-line no-console
-        console.error('Google sign-in redirect failed on native platform', redirectError);
-        setAuthMessage(getFriendlyAuthMessage(redirectError));
-        return false;
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          setAuthMessage('Complete sign-in in browser, then return to the app.');
+          return true;
+        } catch (redirectError) {
+          // eslint-disable-next-line no-console
+          console.error('Google sign-in redirect failed on native platform', redirectError);
+          setAuthMessage(getFriendlyAuthMessage(redirectError));
+          return false;
+        }
       }
     }
 

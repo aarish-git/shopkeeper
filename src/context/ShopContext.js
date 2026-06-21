@@ -12,6 +12,7 @@ const getDefaultForm = () => ({
   quantity: '',
   rateType: '',
   rateValue: '',
+  category: '',
   sizePricing: [{ size: '', costPrice: '', sellingPrice: '' }],
   images: [],
 });
@@ -81,6 +82,7 @@ const loadLocalState = () => {
     cartItems: parseStoredData(STORAGE_KEYS.cart, []),
     sales: parseStoredData(STORAGE_KEYS.sales, []),
     adminPassword: parseStoredData(STORAGE_KEYS.adminPassword, DEFAULT_ADMIN_PASSWORD),
+    categories: parseStoredData(STORAGE_KEYS.categories, []),
   };
 };
 
@@ -93,6 +95,7 @@ const persistLocalState = (nextState) => {
   persistStoredData(STORAGE_KEYS.cart, nextState.cartItems);
   persistStoredData(STORAGE_KEYS.sales, nextState.sales);
   persistStoredData(STORAGE_KEYS.adminPassword, nextState.adminPassword);
+  persistStoredData(STORAGE_KEYS.categories, nextState.categories || []);
 };
 
 export const formatCurrency = (value) => `Rs. ${Number(value || 0).toFixed(2)}`;
@@ -105,6 +108,7 @@ export function ShopProvider({ children }) {
   const [formData, setFormData] = useState(getDefaultForm());
   const [salesFilter, setSalesFilter] = useState('TODAY');
   const [adminPassword, setAdminPassword] = useState(DEFAULT_ADMIN_PASSWORD);
+  const [categories, setCategories] = useState([]);
   const [message, setMessage] = useState('');
   const [isReady, setIsReady] = useState(false);
 
@@ -128,6 +132,7 @@ export function ShopProvider({ children }) {
         cartItems: nextState.cartItems,
         sales: nextState.sales,
         adminPassword: nextState.adminPassword,
+        categories: nextState.categories || [],
         ownerUid: user.uid,
         updatedAt: serverTimestamp(),
       }),
@@ -143,17 +148,20 @@ export function ShopProvider({ children }) {
       typeof nextState.adminPassword === 'string' && nextState.adminPassword.trim()
         ? nextState.adminPassword.trim()
         : adminPassword;
+    const nextCategories = Array.isArray(nextState.categories) ? nextState.categories : categories;
 
     setProducts(nextProducts);
     setCartItems(nextCartItems);
     setSales(nextSales);
     setAdminPassword(nextAdminPassword);
+    setCategories(nextCategories);
 
     const dataToPersist = {
       products: nextProducts,
       cartItems: nextCartItems,
       sales: nextSales,
       adminPassword: nextAdminPassword,
+      categories: nextCategories,
     };
     if (remoteDocRef) {
       persistRemoteState(dataToPersist);
@@ -168,6 +176,7 @@ export function ShopProvider({ children }) {
       setCartItems([]);
       setSales([]);
       setAdminPassword(DEFAULT_ADMIN_PASSWORD);
+      setCategories([]);
       setIsReady(false);
       return undefined;
     }
@@ -178,6 +187,7 @@ export function ShopProvider({ children }) {
       setCartItems(localState.cartItems);
       setSales(localState.sales);
       setAdminPassword(localState.adminPassword || DEFAULT_ADMIN_PASSWORD);
+      setCategories(localState.categories || []);
       setIsReady(true);
       setMessage('Running in offline mode. Data is saved on this device.');
       return undefined;
@@ -195,6 +205,7 @@ export function ShopProvider({ children }) {
               cartItems: [],
               sales: [],
               adminPassword: DEFAULT_ADMIN_PASSWORD,
+              categories: [],
               ownerUid: user.uid,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
@@ -205,6 +216,7 @@ export function ShopProvider({ children }) {
           setCartItems([]);
           setSales([]);
           setAdminPassword(DEFAULT_ADMIN_PASSWORD);
+          setCategories([]);
           setIsReady(true);
           return;
         }
@@ -218,6 +230,7 @@ export function ShopProvider({ children }) {
             ? nextData.adminPassword.trim()
             : DEFAULT_ADMIN_PASSWORD
         );
+        setCategories(Array.isArray(nextData.categories) ? nextData.categories : []);
         setIsReady(true);
       },
       () => {
@@ -274,6 +287,13 @@ export function ShopProvider({ children }) {
     }));
   };
 
+  const addCategory = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed || categories.includes(trimmed)) return;
+    const next = [...categories, trimmed];
+    commitState({ categories: next });
+  };
+
   const addProduct = (event) => {
     event.preventDefault();
 
@@ -306,6 +326,7 @@ export function ShopProvider({ children }) {
     const product = {
       id: Date.now().toString(),
       name: formData.name.trim(),
+      category: formData.category ? formData.category.trim() : '',
       quantity,
       rateType: formData.rateType,
       rateValue: formData.rateValue ? Number(formData.rateValue) : null,
@@ -667,6 +688,7 @@ export function ShopProvider({ children }) {
     cartItems,
     isReady,
     formData,
+    categories,
     salesFilter,
     setSalesFilter,
     adminPassword,
@@ -679,6 +701,7 @@ export function ShopProvider({ children }) {
     addSizePriceRow,
     removeSizePriceRow,
     updateSizePriceRow,
+    addCategory,
     addProduct,
     addToCart,
     updateCartQuantity,

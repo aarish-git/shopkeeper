@@ -1,9 +1,21 @@
+import { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import ImageUpload from '../components/ImageUpload';
 import './AddProductPage.css';
 
 function AddProductPage() {
-  const { formData, onInputChange, onImagesChange, addSizePriceRow, removeSizePriceRow, updateSizePriceRow, addProduct } = useShop();
+  const { formData, onInputChange, onImagesChange, addSizePriceRow, removeSizePriceRow, updateSizePriceRow, addProduct, categories, addCategory } = useShop();
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleAddCategory = () => {
+    if (newCategoryName.trim()) {
+      addCategory(newCategoryName.trim());
+      onInputChange({ target: { name: 'category', value: newCategoryName.trim() } });
+      setNewCategoryName('');
+      setShowNewCategory(false);
+    }
+  };
 
   return (
     <section className="card">
@@ -49,6 +61,57 @@ function AddProductPage() {
             />
           </label>
 
+        </div>
+
+        <div className="form-section">
+          <h3>🏷️ Category</h3>
+          <p className="section-description">Assign a category to organise your products.</p>
+
+          <div className="category-row">
+            <select
+              name="category"
+              value={formData.category}
+              onChange={onInputChange}
+              className="category-select"
+            >
+              <option value="">— No category —</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            {!showNewCategory ? (
+              <button
+                type="button"
+                className="secondary-btn category-add-btn"
+                onClick={() => setShowNewCategory(true)}
+              >
+                + New
+              </button>
+            ) : (
+              <div className="new-category-inline">
+                <input
+                  type="text"
+                  placeholder="Category name"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); } }}
+                  autoFocus
+                  className="new-category-input"
+                />
+                <button type="button" className="primary-btn category-confirm-btn" onClick={handleAddCategory}>
+                  Add
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn category-cancel-btn"
+                  onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="form-section">

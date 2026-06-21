@@ -4,36 +4,48 @@ import { formatCurrency, useShop } from '../context/ShopContext';
 import './ProductsPage.css';
 
 function ProductsPage() {
-  const { products, addToCart } = useShop();
+  const { products, addToCart, categories } = useShop();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
   const [selectedImageIndex, setSelectedImageIndex] = useState({});
   const [selectedSizeByProduct, setSelectedSizeByProduct] = useState({});
 
   const filteredProducts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) {
-      return products;
-    }
 
     return products.filter((product) => {
-      const name = String(product.name || '').toLowerCase();
-      const rateType = String(product.rateType || '').toLowerCase();
-      const stock = String(product.quantity ?? '');
-      const legacySize = String(product.size || '').toLowerCase();
-      const sizeList = Array.isArray(product.sizePricing)
-        ? product.sizePricing.map((row) => String(row?.size || '').toLowerCase()).join(' ')
-        : '';
+      // keyword search
+      if (keyword) {
+        const name = String(product.name || '').toLowerCase();
+        const rateType = String(product.rateType || '').toLowerCase();
+        const stock = String(product.quantity ?? '');
+        const legacySize = String(product.size || '').toLowerCase();
+        const category = String(product.category || '').toLowerCase();
+        const sizeList = Array.isArray(product.sizePricing)
+          ? product.sizePricing.map((row) => String(row?.size || '').toLowerCase()).join(' ')
+          : '';
+        const matches =
+          name.includes(keyword) ||
+          rateType.includes(keyword) ||
+          stock.includes(keyword) ||
+          legacySize.includes(keyword) ||
+          sizeList.includes(keyword) ||
+          category.includes(keyword);
+        if (!matches) return false;
+      }
 
-      return (
-        name.includes(keyword) ||
-        rateType.includes(keyword) ||
-        stock.includes(keyword) ||
-        legacySize.includes(keyword) ||
-        sizeList.includes(keyword)
-      );
+      // category filter
+      if (categoryFilter && String(product.category || '') !== categoryFilter) return false;
+
+      // stock filter
+      if (stockFilter === 'in' && Number(product.quantity) < 1) return false;
+      if (stockFilter === 'out' && Number(product.quantity) > 0) return false;
+
+      return true;
     });
-  }, [products, searchTerm]);
+  }, [products, searchTerm, categoryFilter, stockFilter]);
 
   const getSizeOptions = (product) => {
     if (Array.isArray(product.sizePricing) && product.sizePricing.length) {
@@ -106,14 +118,49 @@ function ProductsPage() {
 
       {products.length ? (
         <div className="products-search-wrap">
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search by name, size, rate type, or stock"
-            className="products-search"
-            aria-label="Search products"
-          />
+          <div className="search-filter-bar">
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by name, size, rate type, or stock"
+              className="products-search"
+              aria-label="Search products"
+            />
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="filter-select"
+              aria-label="Filter by category"
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="filter-select"
+              aria-label="Filter by stock"
+            >
+              <option value="all">All Stock</option>
+              <option value="in">In Stock</option>
+              <option value="out">Out of Stock</option>
+            </select>
+
+            {(searchTerm || categoryFilter || stockFilter !== 'all') && (
+              <button
+                type="button"
+                className="secondary-btn filter-clear-btn"
+                onClick={() => { setSearchTerm(''); setCategoryFilter(''); setStockFilter('all'); }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
 

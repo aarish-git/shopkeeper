@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   cart: 'shopkeeper_cart',
   sales: 'shopkeeper_sales',
   adminPassword: 'shopkeeper_admin_password',
+  categories: 'shopkeeper_categories',
 };
 
 export const parseStoredData = (key, fallbackValue) => {

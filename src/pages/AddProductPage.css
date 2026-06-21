@@ -1,3 +1,41 @@
+/* Category row */
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.category-select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.category-add-btn {
+  white-space: nowrap;
+  padding: 10px 16px;
+}
+
+.new-category-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.new-category-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.category-confirm-btn,
+.category-cancel-btn {
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
 /* Form Section Styles */
 
 .form-section {

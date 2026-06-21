@@ -1,5 +1,5 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { GoogleAuthProvider, getAuth, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
+import { GoogleAuthProvider, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -29,22 +29,8 @@ if (isFirebaseConfigured) {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 }
 
-const createAuthInstance = (firebaseApp) => {
-  if (!firebaseApp) {
-    return null;
-  }
-
-  try {
-    return initializeAuth(firebaseApp, {
-      persistence: indexedDBLocalPersistence,
-    });
-  } catch {
-    return getAuth(firebaseApp);
-  }
-};
-
 export const firebaseApp = app;
-export const auth = createAuthInstance(app);
+export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 
 export const googleProvider = new GoogleAuthProvider();

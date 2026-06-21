@@ -6,74 +6,22 @@ import { auth, firebaseStatusMessage, googleProvider, isFirebaseConfigured } fro
 
 const AuthContext = createContext(null);
 
-const getFriendlyAuthMessage = (error) => {
+const getAuthErrorMessage = (error) => {
   const code = error?.code || '';
-
-  if (code === 'auth/unauthorized-domain') {
-    return 'This app domain is not authorized in Firebase Authentication settings. Add localhost in Firebase Auth > Settings > Authorized domains.';
-  }
-
-  if (code === 'auth/popup-closed-by-user') {
-    return 'Sign-in popup was closed before completing login.';
-  }
-
-  if (code === 'auth/cancelled-popup-request') {
-    return 'Another sign-in popup is already open.';
-  }
-
-  if (code === 'auth/network-request-failed') {
-    return 'Network error while contacting Google. Check internet connection and retry.';
-  }
-
-  if (code === 'auth/operation-not-allowed') {
-    return 'Google sign-in is disabled in Firebase Authentication provider settings.';
-  }
-
-  if (code === 'auth/operation-not-supported-in-this-environment') {
-    return 'Google popup sign-in is not supported in this environment. Retrying with redirect sign-in.';
-  }
-
-  if (code === 'auth/argument-error') {
-    return 'Sign-in popup arguments are not supported in this environment. Retrying with redirect sign-in.';
-  }
-
-  if (code === 'auth/invalid-api-key') {
-    return 'Invalid Firebase API key. Check your REACT_APP_FIREBASE_* values.';
-  }
-
-  if (code === 'auth/popup-blocked') {
-    return 'Popup was blocked by the browser. Allow popups for this site and try again.';
-  }
-
-  if (code === 'auth/requests-from-referer-are-blocked') {
-    return 'This domain is blocked by API key restrictions. Allow this domain in Google Cloud API key restrictions.';
-  }
-
-  if (code === 'auth/web-storage-unsupported') {
-    return 'Browser storage is disabled, so sign-in cannot continue. Enable cookies/local storage and retry.';
-  }
-
-  if (code === 'auth/internal-error') {
-    return 'Firebase auth internal error. Verify Firebase config, authorized domain, and provider settings.';
-  }
-
-  if (code === 'auth/invalid-continue-uri') {
-    return 'Redirect URI is invalid. Add localhost and your Firebase auth domain to authorized domains.';
-  }
-
-  if (code === 'auth/missing-initial-state') {
-    return 'Sign-in state was lost while returning from browser. Please try sign-in again.';
-  }
-
-  if (code === 'auth/invalid-cordova-configuration') {
-    return 'Mobile sign-in configuration is invalid for Cordova resolver. Please update app and retry sign-in.';
-  }
-
-  if (code === 'auth/too-many-requests') {
-    return 'Too many sign-in attempts. Please wait a few minutes and try again.';
-  }
-
-  return `Google sign-in failed. ${code ? `(${code})` : 'Please try again.'}`;
+  const errorMap = {
+    'auth/unauthorized-domain': 'Domain not authorized. Add localhost and your Firebase domain to Auth > Settings > Authorized domains.',
+    'auth/popup-closed-by-user': 'Sign-in popup was closed.',
+    'auth/cancelled-popup-request': 'Another sign-in popup is already open.',
+    'auth/network-request-failed': 'Network error. Check your internet connection.',
+    'auth/operation-not-allowed': 'Google sign-in is disabled in Firebase provider settings.',
+    'auth/popup-blocked': 'Popup was blocked. Allow popups and retry.',
+    'auth/invalid-api-key': 'Invalid Firebase API key. Check REACT_APP_FIREBASE_* env vars.',
+    'auth/internal-error': 'Firebase internal error. Verify config and try again.',
+    'auth/invalid-cordova-configuration': 'Mobile configuration error. Updating app...',
+    'auth/argument-error': 'Sign-in environment configuration mismatch. Retrying...',
+  };
+  const defaultMsg = code ? `Sign-in failed (${code})` : 'Sign-in failed. Please retry.';
+  return errorMap[code] || defaultMsg;
 };
 
 export function AuthProvider({ children }) {
@@ -84,7 +32,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!auth) {
       setUser(null);
-      setAuthMessage(firebaseStatusMessage || 'Firebase is not configured. Google sign-in is required to use this app.');
+      setAuthMessage(firebaseStatusMessage || 'Firebase not configured. Sign-in required.');
       setLoading(false);
       return undefined;
     }
@@ -100,7 +48,7 @@ export function AuthProvider({ children }) {
       },
       () => {
         setLoading(false);
-        setAuthMessage('Could not read the sign-in state.');
+        setAuthMessage('Could not read sign-in state.');
       }
     );
 
@@ -109,70 +57,36 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!auth || !isFirebaseConfigured) {
-      setAuthMessage(firebaseStatusMessage || 'Google sign-in is unavailable until Firebase is configured.');
+      setAuthMessage(firebaseStatusMessage || 'Google sign-in unavailable.');
       return false;
     }
 
-    setAuthMessage('');
-
-    const isNativePlatform = Capacitor?.isNativePlatform?.() || false;
-
-    if (isNativePlatform) {
-      try {
-        await signInWithPopup(auth, googleProvider);
-        return true;
-      } catch (nativePopupError) {
-        // eslint-disable-next-line no-console
-        console.warn('Native popup sign-in failed, falling back to redirect', nativePopupError);
-
-        // Only retry with redirect for expected popup limitations.
-        if (
-          nativePopupError?.code !== 'auth/popup-blocked' &&
-          nativePopupError?.code !== 'auth/operation-not-supported-in-this-environment' &&
-          nativePopupError?.code !== 'auth/argument-error'
-        ) {
-          setAuthMessage(getFriendlyAuthMessage(nativePopupError));
-          return false;
-        }
-
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          setAuthMessage('Complete sign-in in browser, then return to the app.');
-          return true;
-        } catch (redirectError) {
-          // eslint-disable-next-line no-console
-          console.error('Google sign-in redirect failed on native platform', redirectError);
-          setAuthMessage(getFriendlyAuthMessage(redirectError));
-          return false;
-        }
-      }
-    }
+    setAuthMessage('Signing in...');
+    const isNative = Capacitor?.isNativePlatform?.() || false;
 
     try {
+      if (isNative) {
+        await signInWithRedirect(auth, googleProvider);
+        return true;
+      }
+
       await signInWithPopup(auth, googleProvider);
       return true;
     } catch (error) {
-      // Log raw auth errors for easier debugging in browser console.
-      // eslint-disable-next-line no-console
-      console.error('Google sign-in popup failed', error);
+      console.error('Sign-in error:', error?.code, error?.message);
 
-      if (
-        error?.code === 'auth/popup-blocked' ||
-        error?.code === 'auth/operation-not-supported-in-this-environment' ||
-        error?.code === 'auth/argument-error'
-      ) {
+      if (!isNative) {
         try {
           await signInWithRedirect(auth, googleProvider);
           return true;
         } catch (redirectError) {
-          // eslint-disable-next-line no-console
-          console.error('Google sign-in redirect failed', redirectError);
-          setAuthMessage(getFriendlyAuthMessage(redirectError));
+          console.error('Redirect failed:', redirectError?.code);
+          setAuthMessage(getAuthErrorMessage(redirectError));
           return false;
         }
       }
 
-      setAuthMessage(getFriendlyAuthMessage(error));
+      setAuthMessage(getAuthErrorMessage(error));
       return false;
     }
   }, []);
@@ -182,7 +96,6 @@ export function AuthProvider({ children }) {
       setUser(null);
       return true;
     }
-
     await signOut(auth);
     return true;
   }, []);

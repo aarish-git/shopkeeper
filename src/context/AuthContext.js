@@ -33,6 +33,10 @@ const getFriendlyAuthMessage = (error) => {
     return 'Google popup sign-in is not supported in this environment. Retrying with redirect sign-in.';
   }
 
+  if (code === 'auth/argument-error') {
+    return 'Sign-in popup arguments are not supported in this environment. Retrying with redirect sign-in.';
+  }
+
   if (code === 'auth/invalid-api-key') {
     return 'Invalid Firebase API key. Check your REACT_APP_FIREBASE_* values.';
   }
@@ -124,7 +128,8 @@ export function AuthProvider({ children }) {
         // Only retry with redirect for expected popup limitations.
         if (
           nativePopupError?.code !== 'auth/popup-blocked' &&
-          nativePopupError?.code !== 'auth/operation-not-supported-in-this-environment'
+          nativePopupError?.code !== 'auth/operation-not-supported-in-this-environment' &&
+          nativePopupError?.code !== 'auth/argument-error'
         ) {
           setAuthMessage(getFriendlyAuthMessage(nativePopupError));
           return false;
@@ -151,7 +156,11 @@ export function AuthProvider({ children }) {
       // eslint-disable-next-line no-console
       console.error('Google sign-in popup failed', error);
 
-      if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
+      if (
+        error?.code === 'auth/popup-blocked' ||
+        error?.code === 'auth/operation-not-supported-in-this-environment' ||
+        error?.code === 'auth/argument-error'
+      ) {
         try {
           await signInWithRedirect(auth, googleProvider);
           return true;

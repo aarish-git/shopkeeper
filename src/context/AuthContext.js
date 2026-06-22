@@ -1,36 +1,79 @@
 /* eslint-disable react/prop-types */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithCredential,
   signInWithPopup,
   signInWithRedirect,
   signOut,
 } from 'firebase/auth';
-import { auth, firebaseStatusMessage, googleProvider, isFirebaseConfigured } from '../utils/firebase';
+import {
+  auth,
+  firebaseStatusMessage,
+  googleProvider,
+  isFirebaseConfigured,
+} from '../utils/firebase';
 
 const AuthContext = createContext(null);
 
+const isMobileBrowser = () => {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
+const shouldFallbackToRedirect = (code) =>
+  [
+    'auth/popup-blocked',
+    'auth/popup-closed-by-user',
+    'auth/cancelled-popup-request',
+    'auth/internal-error',
+  ].includes(code);
+
 const getAuthErrorMessage = (error) => {
   const code = error?.code || '';
+
   const errorMap = {
-    'auth/unauthorized-domain': 'Domain not authorized. Add localhost and your Firebase domain to Auth > Settings > Authorized domains.',
+    'auth/unauthorized-domain':
+      'Domain not authorized. Add your domain in Firebase Console > Authentication > Settings > Authorized domains.',
     'auth/popup-closed-by-user': 'Sign-in popup was closed.',
     'auth/cancelled-popup-request': 'Another sign-in popup is already open.',
     'auth/network-request-failed': 'Network error. Check your internet connection.',
-    'auth/operation-not-allowed': 'Google sign-in is disabled in Firebase provider settings.',
-    'auth/popup-blocked': 'Popup was blocked. Allow popups and retry.',
-    'auth/invalid-api-key': 'Invalid Firebase API key. Check REACT_APP_FIREBASE_* env vars.',
+    'auth/operation-not-allowed':
+      'Google sign-in is disabled in Firebase provider settings.',
+    'auth/popup-blocked': 'Popup was blocked. Redirecting sign-in is recommended on mobile.',
+    'auth/invalid-api-key':
+      'Invalid Firebase API key. Check REACT_APP_FIREBASE_* env vars.',
     'auth/internal-error': 'Firebase internal error. Verify config and try again.',
-    'auth/invalid-cordova-configuration': 'Mobile configuration error. Updating app...',
-    'auth/argument-error': 'Sign-in environment configuration mismatch. Retrying...',
-    'canceled': 'Sign-in was canceled.',
+    'auth/invalid-cordova-configuration':
+      'Mobile configuration error. Check Firebase Android app, SHA-1/SHA-256, google-services.json and Capacitor sync.',
+    'auth/argument-error':
+      'Sign-in environment configuration mismatch. Check Firebase and Google OAuth configuration.',
+    'auth/account-exists-with-different-credential':
+      'An account already exists with the same email using another sign-in method.',
+    canceled: 'Sign-in was canceled.',
   };
-  const defaultMsg = code ? `Sign-in failed (${code})` : 'Sign-in failed. Please retry.';
-  return errorMap[code] || defaultMsg;
+
+  const defaultMsg = code
+    ? `Sign-in failed (${code})`
+    : 'Sign-in failed. Please retry.';
+
+  return errorMap[code] || error?.message || defaultMsg;
 };
 
 export function AuthProvider({ children }) {
@@ -46,14 +89,24 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+          setAuthMessage('');
+        }
+      })
+      .catch((error) => {
+        console.error('Redirect result error:', error?.code, error?.message);
+        setAuthMessage(getAuthErrorMessage(error));
+      });
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (nextUser) => {
         setUser(nextUser);
         setLoading(false);
-        if (!nextUser) {
-          setAuthMessage('');
-        }
+        setAuthMessage('');
       },
       () => {
         setLoading(false);
@@ -64,6 +117,32 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  const signInNativeGoogle = useCallback(async () => {
+    const result = await FirebaseAuthentication.signInWithGoogle();
+    const idToken = result?.credential?.idToken || null;
+    const accessToken = result?.credential?.accessToken || null;
+
+    if (!idToken && !accessToken) {
+      setAuthMessage('Google token not returned from native sign-in.');
+      return false;
+    }
+
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
+    await signInWithCredential(auth, credential);
+    setAuthMessage('');
+    return true;
+  }, []);
+
+  const signInWebGoogle = useCallback(async () => {
+    if (isMobileBrowser()) {
+      await signInWithRedirect(auth, googleProvider);
+      return;
+    }
+
+    await signInWithPopup(auth, googleProvider);
+    setAuthMessage('');
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     if (!auth || !isFirebaseConfigured) {
       setAuthMessage(firebaseStatusMessage || 'Google sign-in unavailable.');
@@ -71,44 +150,36 @@ export function AuthProvider({ children }) {
     }
 
     setAuthMessage('Signing in...');
-    const isNative = Capacitor?.isNativePlatform?.() || false;
+
+    const isNative = Capacitor.isNativePlatform();
 
     try {
       if (isNative) {
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        const idToken = result?.credential?.idToken;
-        const accessToken = result?.credential?.accessToken;
-
-        if (!idToken && !accessToken) {
-          setAuthMessage('Google token not returned from native sign-in.');
-          return false;
-        }
-
-        const credential = GoogleAuthProvider.credential(idToken || null, accessToken || null);
-        await signInWithCredential(auth, credential);
-        return true;
+        return await signInNativeGoogle();
       }
 
-      await signInWithPopup(auth, googleProvider);
+      await signInWebGoogle();
       return true;
     } catch (error) {
       console.error('Sign-in error:', error?.code, error?.message);
 
       if (!isNative) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return true;
-        } catch (redirectError) {
-          console.error('Redirect failed:', redirectError?.code);
-          setAuthMessage(getAuthErrorMessage(redirectError));
-          return false;
+        if (shouldFallbackToRedirect(error?.code)) {
+          try {
+            await signInWithRedirect(auth, googleProvider);
+            return true;
+          } catch (redirectError) {
+            console.error('Redirect failed:', redirectError?.code, redirectError?.message);
+            setAuthMessage(getAuthErrorMessage(redirectError));
+            return false;
+          }
         }
       }
 
       setAuthMessage(getAuthErrorMessage(error));
       return false;
     }
-  }, []);
+  }, [signInNativeGoogle, signInWebGoogle]);
 
   const signOutUser = useCallback(async () => {
     if (!auth) {
@@ -116,7 +187,7 @@ export function AuthProvider({ children }) {
       return true;
     }
 
-    if (Capacitor?.isNativePlatform?.()) {
+    if (Capacitor.isNativePlatform()) {
       try {
         await FirebaseAuthentication.signOut();
       } catch (error) {
@@ -125,6 +196,8 @@ export function AuthProvider({ children }) {
     }
 
     await signOut(auth);
+    setUser(null);
+    setAuthMessage('');
     return true;
   }, []);
 
@@ -144,8 +217,10 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');
   }
+
   return context;
 };

@@ -4,9 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.shopkeeper.app',
   appName: 'Shopkeeper',
   webDir: 'build',
+
   server: {
-    androidScheme: 'http'
+    androidScheme: 'https',
   },
+
   plugins: {
     SplashScreen: {
       launchShowDuration: 0,
@@ -15,7 +17,7 @@ const config: CapacitorConfig = {
       skipNativeAuth: true,
       providers: ['google.com'],
     },
-  }
+  },
 };
 
 export default config;

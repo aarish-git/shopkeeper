@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "2973242860",
+    "firebase_url": "https://shopkeeper-managment-default-rtdb.firebaseio.com",
+    "project_id": "shopkeeper-managment",
+    "storage_bucket": "shopkeeper-managment.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:2973242860:android:1d8f6a0f31f4c2a9c45f2b",
+        "android_client_info": {
+          "package_name": "com.shopkeeper.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZT0YwsbV654YDeO-xJYQ2nC2gWzWp-_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

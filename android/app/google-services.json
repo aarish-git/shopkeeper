@@ -8,20 +8,38 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:2973242860:android:1d8f6a0f31f4c2a9c45f2b",
+        "mobilesdk_app_id": "1:2973242860:android:3a2e8fe0ac967dcdaa9cc9",
         "android_client_info": {
           "package_name": "com.shopkeeper.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "2973242860-mfs53n9atoigfg48t53a5easrikur4mp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shopkeeper.app",
+            "certificate_hash": "acc2e4ce452a94a962a3219f9fffcfff957eee07"
+          }
+        },
+        {
+          "client_id": "2973242860-675fqafo380ke67vfodh1e7dkckv30s2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyDZT0YwsbV654YDeO-xJYQ2nC2gWzWp-_k"
+          "current_key": "AIzaSyAr8gqxDEuPDfKJ16-71boJyJQJ4OviKiE"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "2973242860-675fqafo380ke67vfodh1e7dkckv30s2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

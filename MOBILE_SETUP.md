@@ -191,6 +191,11 @@ cd android && ./gradlew clean
   npm run mobile:build
   ```
 
+**Available sign-in methods**
+- The login screen supports Google, Facebook, and email/password. Enable **Email/Password** under Firebase Console → **Authentication → Sign-in method** to allow account sign-up and sign-in.
+- For Facebook, configure the Facebook provider in Firebase and the matching Meta app ID, client token, and OAuth redirect URI in the Meta and Firebase consoles. For Android, replace `facebook_app_id`, `facebook_client_token`, and `fb_login_protocol_scheme` in `android/app/src/main/res/values/strings.xml`, and add the Android package `com.shopkeeper.app` and its key hash in Meta for Developers. Facebook sign-in cannot work until these provider-specific settings are complete.
+- Google Play Games is a separate Android-only Firebase provider. It is not offered here because this app uses Firebase's JavaScript auth and Firestore SDKs, which cannot consume the plugin's native-only Play Games session. Use **Continue with Google** for Google accounts.
+
 **Port already in use**
 - Change port in `capacitor.config.ts`
 

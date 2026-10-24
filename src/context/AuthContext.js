@@ -10,9 +10,12 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import {
+  createUserWithEmailAndPassword,
+  FacebookAuthProvider,
   GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  signInWithEmailAndPassword,
   signInWithCredential,
   signInWithPopup,
   signInWithRedirect,
@@ -46,7 +49,12 @@ const shouldFallbackToRedirect = (code) =>
   ].includes(code);
 
 const getAuthErrorMessage = (error) => {
-  const code = error?.code || '';
+  const code = String(error?.code || '');
+  const errorMessage = error?.message || '';
+
+  if (code === '10' || /^10(?::|\b)/.test(errorMessage)) {
+    return "Google sign-in is not configured for this Android build. In Firebase, enable Google sign-in, register com.shopkeeper.app, add this APK signing certificate's SHA-1 and SHA-256 fingerprints, then download the updated google-services.json and rebuild.";
+  }
 
   const errorMap = {
     'auth/unauthorized-domain':
@@ -55,7 +63,14 @@ const getAuthErrorMessage = (error) => {
     'auth/cancelled-popup-request': 'Another sign-in popup is already open.',
     'auth/network-request-failed': 'Network error. Check your internet connection.',
     'auth/operation-not-allowed':
-      'Google sign-in is disabled in Firebase provider settings.',
+      'This sign-in method is disabled in Firebase Authentication settings.',
+    'auth/invalid-email': 'Enter a valid email address.',
+    'auth/user-disabled': 'This account has been disabled.',
+    'auth/user-not-found': 'No account was found for this email. Create an account or check the address.',
+    'auth/wrong-password': 'Incorrect email or password.',
+    'auth/invalid-credential': 'Incorrect email or password.',
+    'auth/email-already-in-use': 'An account already exists for this email. Sign in instead.',
+    'auth/weak-password': 'Choose a password with at least 6 characters.',
     'auth/popup-blocked': 'Popup was blocked. Redirecting sign-in is recommended on mobile.',
     'auth/invalid-api-key':
       'Invalid Firebase API key. Check REACT_APP_FIREBASE_* env vars.',
@@ -73,7 +88,7 @@ const getAuthErrorMessage = (error) => {
     ? `Sign-in failed (${code})`
     : 'Sign-in failed. Please retry.';
 
-  return errorMap[code] || error?.message || defaultMsg;
+  return errorMap[code] || errorMessage || defaultMsg;
 };
 
 export function AuthProvider({ children }) {
@@ -155,6 +170,79 @@ export function AuthProvider({ children }) {
     setAuthMessage('');
   }, []);
 
+  const signInWithFacebook = useCallback(async () => {
+    if (!auth || !isFirebaseConfigured) {
+      setAuthMessage(firebaseStatusMessage || 'Facebook sign-in unavailable.');
+      return false;
+    }
+
+    setAuthMessage('Signing in with Facebook...');
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const result = await FirebaseAuthentication.signInWithFacebook();
+        const accessToken = result?.credential?.accessToken || null;
+
+        if (!accessToken) {
+          throw new Error('Facebook did not return an access token.');
+        }
+
+        await signInWithCredential(
+          auth,
+          FacebookAuthProvider.credential(accessToken)
+        );
+      } else if (isMobileBrowser()) {
+        await signInWithRedirect(auth, new FacebookAuthProvider());
+        return true;
+      } else {
+        await signInWithPopup(auth, new FacebookAuthProvider());
+      }
+
+      setAuthMessage('');
+      return true;
+    } catch (error) {
+      console.error('Facebook sign-in error:', error?.code, error?.message);
+      setAuthMessage(getAuthErrorMessage(error));
+      return false;
+    }
+  }, []);
+
+  const signInWithEmail = useCallback(async (email, password) => {
+    if (!auth || !isFirebaseConfigured) {
+      setAuthMessage(firebaseStatusMessage || 'Email sign-in unavailable.');
+      return false;
+    }
+
+    setAuthMessage('Signing in...');
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      setAuthMessage('');
+      return true;
+    } catch (error) {
+      console.error('Email sign-in error:', error?.code, error?.message);
+      setAuthMessage(getAuthErrorMessage(error));
+      return false;
+    }
+  }, []);
+
+  const createEmailAccount = useCallback(async (email, password) => {
+    if (!auth || !isFirebaseConfigured) {
+      setAuthMessage(firebaseStatusMessage || 'Account creation unavailable.');
+      return false;
+    }
+
+    setAuthMessage('Creating your account...');
+    try {
+      await createUserWithEmailAndPassword(auth, email.trim(), password);
+      setAuthMessage('');
+      return true;
+    } catch (error) {
+      console.error('Email account creation error:', error?.code, error?.message);
+      setAuthMessage(getAuthErrorMessage(error));
+      return false;
+    }
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     if (!auth || !isFirebaseConfigured) {
       setAuthMessage(firebaseStatusMessage || 'Google sign-in unavailable.');
@@ -219,9 +307,21 @@ export function AuthProvider({ children }) {
       loading,
       authMessage,
       signInWithGoogle,
+      signInWithFacebook,
+      signInWithEmail,
+      createEmailAccount,
       signOutUser,
     }),
-    [user, loading, authMessage, signInWithGoogle, signOutUser]
+    [
+      user,
+      loading,
+      authMessage,
+      signInWithGoogle,
+      signInWithFacebook,
+      signInWithEmail,
+      createEmailAccount,
+      signOutUser,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

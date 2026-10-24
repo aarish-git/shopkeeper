@@ -4,19 +4,42 @@ import { firebaseStatusMessage, isFirebaseConfigured } from '../utils/firebase';
 import './LoginPage.css';
 
 function LoginPage() {
-  const { authMessage, signInWithGoogle } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
+  const {
+    authMessage,
+    signInWithGoogle,
+    signInWithFacebook,
+    signInWithEmail,
+    createEmailAccount,
+  } = useAuth();
+  const [submitting, setSubmitting] = useState('');
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const onGoogleSignIn = async () => {
-    setSubmitting(true);
+  const handleSocialSignIn = async (provider, signIn) => {
+    setSubmitting(provider);
     try {
-      await signInWithGoogle();
+      await signIn();
     } finally {
-      setSubmitting(false);
+      setSubmitting('');
     }
   };
 
-  const message = authMessage || firebaseStatusMessage;
+  const handleEmailSubmit = async (event) => {
+    event.preventDefault();
+    setSubmitting('email');
+    try {
+      if (isCreatingAccount) {
+        await createEmailAccount(email, password);
+      } else {
+        await signInWithEmail(email, password);
+      }
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const isBusy = Boolean(submitting);
 
   return (
     <main className="login-screen">
@@ -24,8 +47,8 @@ function LoginPage() {
         <div className="login-left">
           <div className="login-brand">
             <div className="login-badge">Shopkeeper</div>
-            <h1>Sign in with Google</h1>
-            <p>Login is required to use the app and keep your products, cart, and sales synced.</p>
+            <h1>Sign in to Shopkeeper</h1>
+            <p>Choose a sign-in method to access your products, cart, and sales.</p>
           </div>
 
           <div className="login-benefits">
@@ -33,7 +56,7 @@ function LoginPage() {
               <span>🔐</span>
               <div>
                 <strong>Secure account access</strong>
-                <p>Only your Google account can access your business data.</p>
+                <p>Only your signed-in account can access your business data.</p>
               </div>
             </div>
             <div className="benefit-item">
@@ -56,28 +79,84 @@ function LoginPage() {
         <div className="login-right">
           <div className="login-panel">
             <h2>Continue</h2>
-            <p>Authenticate with Google to enter the app.</p>
+            <p>Use a provider or your email and password.</p>
 
-            {message ? <p className="login-message">{message}</p> : null}
+            {authMessage || firebaseStatusMessage ? (
+              <p className="login-message" role="status">
+                {authMessage || firebaseStatusMessage}
+              </p>
+            ) : null}
 
-            <button type="button" className="login-btn" onClick={onGoogleSignIn} disabled={submitting || !isFirebaseConfigured}>
-              {submitting ? 'Signing in...' : 'Continue with Google'}
+            <button
+              type="button"
+              className="login-btn"
+              onClick={() => handleSocialSignIn('google', signInWithGoogle)}
+              disabled={isBusy || !isFirebaseConfigured}
+            >
+              {submitting === 'google' ? 'Signing in...' : 'Continue with Google'}
+            </button>
+
+            <button
+              type="button"
+              className="login-btn login-btn-secondary"
+              onClick={() => handleSocialSignIn('facebook', signInWithFacebook)}
+              disabled={isBusy || !isFirebaseConfigured}
+            >
+              {submitting === 'facebook' ? 'Signing in...' : 'Continue with Facebook'}
+            </button>
+
+            <div className="login-divider"><span>or use email</span></div>
+
+            <form className="login-form" onSubmit={handleEmailSubmit}>
+              <label htmlFor="login-email">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                disabled={isBusy || !isFirebaseConfigured}
+              />
+
+              <label htmlFor="login-password">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                autoComplete={isCreatingAccount ? 'new-password' : 'current-password'}
+                minLength={6}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                disabled={isBusy || !isFirebaseConfigured}
+              />
+
+              <button
+                type="submit"
+                className="login-btn login-btn-email"
+                disabled={isBusy || !isFirebaseConfigured}
+              >
+                {submitting === 'email'
+                  ? 'Please wait...'
+                  : isCreatingAccount
+                    ? 'Create account with email'
+                    : 'Sign in with email'}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              className="login-mode-toggle"
+              onClick={() => setIsCreatingAccount((creating) => !creating)}
+              disabled={isBusy || !isFirebaseConfigured}
+            >
+              {isCreatingAccount
+                ? 'Already have an account? Sign in'
+                : 'New here? Create an account'}
             </button>
 
             {!isFirebaseConfigured ? (
-              <p className="missing-keys">Firebase config is required before users can log in.</p>
-            ) : null}
-
-            <div className="login-footnote">
-              {isFirebaseConfigured ? (
-                <p>Firebase is configured and ready.</p>
-              ) : (
-                <p>Complete Firebase setup, then retry Google sign-in.</p>
-              )}
-            </div>
-
-            {authMessage || firebaseStatusMessage ? (
-              <p className="missing-keys">{authMessage || firebaseStatusMessage}</p>
+              <p className="login-footnote">Complete Firebase setup before signing in.</p>
             ) : null}
           </div>
         </div>

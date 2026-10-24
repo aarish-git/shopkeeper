@@ -17,7 +17,7 @@ function AuthLoadingScreen() {
     <main className="auth-screen">
       <section className="auth-card">
         <div className="auth-spinner" aria-hidden="true" />
-        <h2>Checking your sign-in status...</h2>
+        <h2>Checking your sign-in status....</h2>
       </section>
     </main>
   );

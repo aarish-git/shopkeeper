@@ -118,7 +118,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signInNativeGoogle = useCallback(async () => {
-    const result = await FirebaseAuthentication.signInWithGoogle();
+    let result;
+    try {
+      result = await FirebaseAuthentication.signInWithGoogle();
+    } catch (error) {
+      if (!/no credentials available/i.test(error?.message || '')) {
+        throw error;
+      }
+
+      result = await FirebaseAuthentication.signInWithGoogle({
+        useCredentialManager: false,
+      });
+    }
+
     const idToken = result?.credential?.idToken || null;
     const accessToken = result?.credential?.accessToken || null;
 

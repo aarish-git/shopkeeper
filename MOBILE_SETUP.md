@@ -182,6 +182,15 @@ cd android && ./gradlew clean
   adb logcat | grep shopkeeper
   ```
 
+**Google sign-in says "No credentials available"**
+- The app retries Google sign-in using the native account chooser if Android Credential Manager has no saved credentials.
+- In Firebase Console, enable Google under **Authentication → Sign-in method** and add the Android app with package name `com.shopkeeper.app`.
+- Add the SHA-1 and SHA-256 fingerprints for the APK signing certificate to the Android app in Firebase, then download the refreshed `google-services.json` to `android/app/google-services.json`. It must include the OAuth client configuration, including the Web client ID.
+- Rebuild and install the APK after updating Firebase configuration:
+  ```bash
+  npm run mobile:build
+  ```
+
 **Port already in use**
 - Change port in `capacitor.config.ts`
 
